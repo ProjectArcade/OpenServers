@@ -41,7 +41,7 @@ cat << "EOF"
 ║      ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║   ║
 ║      ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝   ║
 ║                                                           ║
-║         Turn Your Devices Into a Global Server            ║
+║         Turn Your Devices Into a Global Server           ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
 
@@ -137,9 +137,37 @@ install_cloudflared() {
     echo -e "${GREEN}✓ cloudflared installed${NC}"
 }
 
+# Display OpenServers header
+show_header() {
+    clear
+    cat << "EOF"
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   ██████╗ ██████╗ ███████╗███╗   ██╗                     ║
+║  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║                     ║
+║  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║                     ║
+║  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║                     ║
+║  ╚██████╔╝██║     ███████╗██║ ╚████║                     ║
+║   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝                     ║
+║                                                           ║
+║      ███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗    ║
+║      ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗   ║
+║      ███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝   ║
+║      ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗   ║
+║      ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║   ║
+║      ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝   ║
+║                                                           ║
+║         Turn Your Devices Into a Global Server           ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝
+
+EOF
+}
+
 # Main menu
 main_menu() {
     while true; do
+        show_header
         echo -e "\n${CYAN}═══════════════════════════════════════${NC}"
         echo -e "${GREEN}Main Menu${NC}"
         echo -e "${CYAN}═══════════════════════════════════════${NC}"
@@ -331,7 +359,7 @@ def home():
             <div class="status">● Server Running</div>
             <div class="info">
                 <p><strong>Your device is now a server!</strong></p>
-                <p>This is running on your mobile/computer</p>
+                <p>This is running on your device</p>
                 <p>Powered by OpenServers</p>
             </div>
             <div>
@@ -427,7 +455,7 @@ create_static_server() {
         <div class="status">● Server Running</div>
         <div class="info">
             <p><strong>Your device is now a server!</strong></p>
-            <p>This static site is running on your mobile/computer</p>
+            <p>This static site is running on your device</p>
             <p>Edit index.html to customize</p>
             <p>Powered by OpenServers</p>
         </div>
@@ -518,7 +546,7 @@ const server = http.createServer((req, res) => {
         <div class="status">● Server Running</div>
         <div class="info">
             <p><strong>Your device is now a server!</strong></p>
-            <p>This Node.js server is running on your mobile/computer</p>
+            <p>This Node.js server is running on your device</p>
             <p>Powered by OpenServers</p>
         </div>
         <div>
@@ -554,23 +582,260 @@ create_custom_server() {
     local port=$2
     
     echo -e "\n${BLUE}Custom server setup:${NC}"
-    echo "1. Git clone"
-    echo "2. Manual (you'll add files later)"
+    echo "  1. Git clone from repository"
+    echo "  2. Create files manually (opens editor)"
+    echo "  3. Use existing local directory"
     echo ""
-    echo -ne "${YELLOW}Choice (1-2): ${NC}"
+    echo -ne "${YELLOW}Choice (1-3): ${NC}"
     read custom_choice
     
-    if [ "$custom_choice" = "1" ]; then
-        echo -ne "\n${YELLOW}Git repository URL: ${NC}"
-        read git_url
-        
-        if [ ! -z "$git_url" ]; then
-            git clone "$git_url" "$dir/code"
-        fi
-    else
-        mkdir -p "$dir/code"
-        echo -e "\n${YELLOW}Add your files to: $dir/code${NC}"
-        echo -e "${YELLOW}Then create a start.sh script${NC}"
+    case $custom_choice in
+        1)
+            echo -ne "\n${YELLOW}Git repository URL: ${NC}"
+            read git_url
+            
+            if [ ! -z "$git_url" ]; then
+                echo -e "${BLUE}Cloning repository...${NC}"
+                if git clone "$git_url" "$dir/code" 2>/dev/null; then
+                    echo -e "${GREEN}✓ Repository cloned successfully${NC}"
+                    
+                    # Ask for start command
+                    echo -e "\n${YELLOW}How should we start your server?${NC}"
+                    echo "Example: python app.py, node index.js, ./start.sh"
+                    echo -ne "${YELLOW}Start command: ${NC}"
+                    read start_cmd
+                    
+                    if [ ! -z "$start_cmd" ]; then
+                        cat > "$dir/start.sh" << EOF
+#!/bin/bash
+cd "$dir/code"
+$start_cmd
+EOF
+                        chmod +x "$dir/start.sh"
+                        echo -e "${GREEN}✓ Start script created${NC}"
+                    fi
+                else
+                    echo -e "${RED}✗ Failed to clone repository${NC}"
+                    return 1
+                fi
+            fi
+            ;;
+        2)
+            mkdir -p "$dir/code"
+            
+            echo -e "\n${BLUE}Creating custom server files...${NC}"
+            echo -e "${YELLOW}What language/framework will you use?${NC}"
+            echo "  1. Python"
+            echo "  2. Node.js"
+            echo "  3. Shell script"
+            echo "  4. Other"
+            echo ""
+            echo -ne "${YELLOW}Choice (1-4): ${NC}"
+            read lang_choice
+            
+            case $lang_choice in
+                1)
+                    # Python - create main file
+                    echo -e "\n${BLUE}Opening editor to create Python server...${NC}"
+                    sleep 1
+                    
+                    # Detect available editor
+                    if command -v nano &> /dev/null; then
+                        EDITOR="nano"
+                    elif command -v vim &> /dev/null; then
+                        EDITOR="vim"
+                    elif command -v vi &> /dev/null; then
+                        EDITOR="vi"
+                    else
+                        echo -e "${RED}No text editor found (nano/vim/vi)${NC}"
+                        return 1
+                    fi
+                    
+                    # Create template
+                    cat > "$dir/code/app.py" << 'EOF'
+# Your Python server code here
+# Example:
+# from flask import Flask
+# app = Flask(__name__)
+# 
+# @app.route('/')
+# def home():
+#     return "Hello from OpenServers!"
+# 
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=8000)
+
+EOF
+                    
+                    $EDITOR "$dir/code/app.py"
+                    
+                    # Create start script
+                    echo -ne "\n${YELLOW}Port to run on (default: $port): ${NC}"
+                    read custom_port
+                    custom_port=${custom_port:-$port}
+                    
+                    cat > "$dir/start.sh" << EOF
+#!/bin/bash
+cd "$dir/code"
+python3 app.py
+EOF
+                    chmod +x "$dir/start.sh"
+                    ;;
+                    
+                2)
+                    # Node.js - create main file
+                    echo -e "\n${BLUE}Opening editor to create Node.js server...${NC}"
+                    sleep 1
+                    
+                    if command -v nano &> /dev/null; then
+                        EDITOR="nano"
+                    elif command -v vim &> /dev/null; then
+                        EDITOR="vim"
+                    elif command -v vi &> /dev/null; then
+                        EDITOR="vi"
+                    else
+                        echo -e "${RED}No text editor found (nano/vim/vi)${NC}"
+                        return 1
+                    fi
+                    
+                    cat > "$dir/code/server.js" << 'EOF'
+// Your Node.js server code here
+// Example:
+// const http = require('http');
+// 
+// const server = http.createServer((req, res) => {
+//     res.writeHead(200, { 'Content-Type': 'text/plain' });
+//     res.end('Hello from OpenServers!');
+// });
+// 
+// server.listen(8000, '0.0.0.0', () => {
+//     console.log('Server running on port 8000');
+// });
+
+EOF
+                    
+                    $EDITOR "$dir/code/server.js"
+                    
+                    cat > "$dir/start.sh" << EOF
+#!/bin/bash
+cd "$dir/code"
+node server.js
+EOF
+                    chmod +x "$dir/start.sh"
+                    ;;
+                    
+                3)
+                    # Shell script
+                    echo -e "\n${BLUE}Opening editor to create startup script...${NC}"
+                    sleep 1
+                    
+                    if command -v nano &> /dev/null; then
+                        EDITOR="nano"
+                    elif command -v vim &> /dev/null; then
+                        EDITOR="vim"
+                    elif command -v vi &> /dev/null; then
+                        EDITOR="vi"
+                    else
+                        echo -e "${RED}No text editor found (nano/vim/vi)${NC}"
+                        return 1
+                    fi
+                    
+                    cat > "$dir/start.sh" << 'EOF'
+#!/bin/bash
+# Your startup commands here
+# Example:
+# python3 -m http.server 8000
+
+EOF
+                    
+                    $EDITOR "$dir/start.sh"
+                    chmod +x "$dir/start.sh"
+                    ;;
+                    
+                4)
+                    # Other - manual setup
+                    echo -e "\n${BLUE}Opening editor to create main file...${NC}"
+                    echo -ne "${YELLOW}Filename (e.g., main.go, index.php): ${NC}"
+                    read filename
+                    
+                    if [ -z "$filename" ]; then
+                        filename="main.txt"
+                    fi
+                    
+                    if command -v nano &> /dev/null; then
+                        EDITOR="nano"
+                    elif command -v vim &> /dev/null; then
+                        EDITOR="vim"
+                    elif command -v vi &> /dev/null; then
+                        EDITOR="vi"
+                    else
+                        echo -e "${RED}No text editor found (nano/vim/vi)${NC}"
+                        return 1
+                    fi
+                    
+                    touch "$dir/code/$filename"
+                    $EDITOR "$dir/code/$filename"
+                    
+                    # Ask for start command
+                    echo -e "\n${YELLOW}How should we start your server?${NC}"
+                    echo "Example: go run main.go, php -S 0.0.0.0:8000"
+                    echo -ne "${YELLOW}Start command: ${NC}"
+                    read start_cmd
+                    
+                    if [ ! -z "$start_cmd" ]; then
+                        cat > "$dir/start.sh" << EOF
+#!/bin/bash
+cd "$dir/code"
+$start_cmd
+EOF
+                        chmod +x "$dir/start.sh"
+                    fi
+                    ;;
+            esac
+            
+            echo -e "\n${GREEN}✓ Custom server files created${NC}"
+            ;;
+            
+        3)
+            echo -ne "\n${YELLOW}Path to existing directory: ${NC}"
+            read source_dir
+            
+            if [ -d "$source_dir" ]; then
+                echo -e "${BLUE}Copying files...${NC}"
+                cp -r "$source_dir"/* "$dir/code/" 2>/dev/null
+                echo -e "${GREEN}✓ Files copied${NC}"
+                
+                # Ask for start command
+                echo -e "\n${YELLOW}How should we start your server?${NC}"
+                echo "Example: python app.py, node index.js, ./start.sh"
+                echo -ne "${YELLOW}Start command: ${NC}"
+                read start_cmd
+                
+                if [ ! -z "$start_cmd" ]; then
+                    cat > "$dir/start.sh" << EOF
+#!/bin/bash
+cd "$dir/code"
+$start_cmd
+EOF
+                    chmod +x "$dir/start.sh"
+                    echo -e "${GREEN}✓ Start script created${NC}"
+                fi
+            else
+                echo -e "${RED}✗ Directory not found${NC}"
+                return 1
+            fi
+            ;;
+            
+        *)
+            echo -e "${RED}Invalid choice${NC}"
+            return 1
+            ;;
+    esac
+    
+    # Final check
+    if [ ! -f "$dir/start.sh" ]; then
+        echo -e "\n${YELLOW}⚠ No start script created${NC}"
+        echo -e "${YELLOW}You can add one later at: $dir/start.sh${NC}"
     fi
 }
 
@@ -708,155 +973,485 @@ list_servers() {
 
 # View server details
 view_server() {
-    echo -ne "\n${YELLOW}Server name: ${NC}"
+    clear
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     🔍 View Server Details            ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
+    
+    # List available servers
+    if [ ! "$(ls -A $SERVERS_DIR 2>/dev/null)" ]; then
+        echo -e "${YELLOW}No servers found${NC}"
+        echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    echo -e "${BLUE}Available servers:${NC}"
+    for server_dir in "$SERVERS_DIR"/*; do
+        if [ -d "$server_dir" ]; then
+            server_name=$(basename "$server_dir")
+            echo -e "  • $server_name"
+        fi
+    done
+    
+    echo ""
+    echo -ne "${YELLOW}Server name (or 'cancel' to go back): ${NC}"
     read server_name
+    
+    if [ "$server_name" = "cancel" ] || [ -z "$server_name" ]; then
+        return
+    fi
     
     SERVER_DIR="$SERVERS_DIR/$server_name"
     
     if [ ! -d "$SERVER_DIR" ]; then
-        echo -e "${RED}Server not found${NC}"
+        echo -e "\n${RED}✗ Server '$server_name' not found${NC}"
+        sleep 2
         return
     fi
     
     clear
     echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     🔍 Server Details                 ║${NC}"
+    echo -e "${CYAN}║     Server: $server_name${NC}"
     echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
     
-    # Show config
+    # Check status
+    local is_running=false
+    if [ -f "$SERVER_DIR/server.pid" ]; then
+        pid=$(cat "$SERVER_DIR/server.pid")
+        if ps -p $pid > /dev/null 2>&1; then
+            is_running=true
+            echo -e "${GREEN}● Status: Running (PID: $pid)${NC}"
+        else
+            echo -e "${RED}○ Status: Stopped${NC}"
+        fi
+    else
+        echo -e "${RED}○ Status: Stopped${NC}"
+    fi
+    
+    # Show config details
     if [ -f "$SERVER_DIR/config.json" ]; then
-        cat "$SERVER_DIR/config.json"
+        port=$(grep -oP '"port":\s*\K\d+' "$SERVER_DIR/config.json")
+        created=$(grep -oP '"created":\s*"\K[^"]+' "$SERVER_DIR/config.json")
+        exposed=$(grep -oP '"exposed":\s*\K(true|false)' "$SERVER_DIR/config.json")
+        
+        echo -e "${BLUE}Port:${NC}    $port"
+        echo -e "${BLUE}Created:${NC} $created"
+        if [ "$exposed" = "true" ]; then
+            echo -e "${BLUE}Exposed:${NC} Yes (Global tunnel)"
+        else
+            echo -e "${BLUE}Exposed:${NC} No (Localhost only)"
+        fi
     fi
     
     # Show URLs
-    echo -e "\n${BLUE}Access URLs:${NC}"
+    echo -e "\n${CYAN}─────────────────────────────────────${NC}"
+    echo -e "${YELLOW}Access URLs:${NC}"
+    echo -e "${CYAN}─────────────────────────────────────${NC}"
     
     # Local URL
     if [ -f "$SERVER_DIR/config.json" ]; then
         port=$(grep -oP '"port":\s*\K\d+' "$SERVER_DIR/config.json")
-        echo -e "${YELLOW}Local:${NC}  http://localhost:$port"
+        if [ "$is_running" = true ]; then
+            echo -e "${GREEN}✓${NC} Local:  http://localhost:$port"
+        else
+            echo -e "${RED}✗${NC} Local:  http://localhost:$port (server stopped)"
+        fi
     fi
     
     # Public URL
     if [ -f "$SERVER_DIR/tunnel.url" ]; then
         tunnel_url=$(cat "$SERVER_DIR/tunnel.url")
-        echo -e "${GREEN}Public:${NC} $tunnel_url"
+        
+        # Check if tunnel is running
+        if [ -f "$SERVER_DIR/tunnel.pid" ]; then
+            tunnel_pid=$(cat "$SERVER_DIR/tunnel.pid")
+            if ps -p $tunnel_pid > /dev/null 2>&1; then
+                echo -e "${GREEN}✓${NC} Public: $tunnel_url"
+            else
+                echo -e "${RED}✗${NC} Public: $tunnel_url (tunnel stopped)"
+            fi
+        else
+            echo -e "${RED}✗${NC} Public: $tunnel_url (tunnel stopped)"
+        fi
     elif [ -f "$SERVER_DIR/tunnel.log" ]; then
         # Try to extract from logs
         tunnel_url=$(grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$SERVER_DIR/tunnel.log" | head -1)
         if [ ! -z "$tunnel_url" ]; then
-            echo -e "${GREEN}Public:${NC} $tunnel_url"
+            echo -e "${YELLOW}ℹ${NC} Public: $tunnel_url (check tunnel status)"
             echo "$tunnel_url" > "$SERVER_DIR/tunnel.url"
-        else
-            echo -e "${YELLOW}Public: Checking tunnel logs...${NC}"
-            echo -e "${YELLOW}Run this to see tunnel URL:${NC}"
-            echo -e "  grep 'trycloudflare' $SERVER_DIR/tunnel.log"
         fi
     fi
     
-    echo -e "\n${BLUE}Recent server logs:${NC}"
-    tail -20 "$SERVER_DIR/server.log" 2>/dev/null || echo "No logs"
+    # Show recent logs
+    echo -e "\n${CYAN}─────────────────────────────────────${NC}"
+    echo -e "${YELLOW}Recent Server Logs:${NC}"
+    echo -e "${CYAN}─────────────────────────────────────${NC}"
+    if [ -f "$SERVER_DIR/server.log" ]; then
+        tail -15 "$SERVER_DIR/server.log" | while IFS= read -r line; do
+            echo "  $line"
+        done
+    else
+        echo -e "${YELLOW}  No logs available${NC}"
+    fi
     
-    echo -e "\n${BLUE}Recent tunnel logs:${NC}"
-    tail -10 "$SERVER_DIR/tunnel.log" 2>/dev/null || echo "No tunnel logs"
+    # Show tunnel logs if exists
+    if [ -f "$SERVER_DIR/tunnel.log" ]; then
+        echo -e "\n${CYAN}─────────────────────────────────────${NC}"
+        echo -e "${YELLOW}Recent Tunnel Logs:${NC}"
+        echo -e "${CYAN}─────────────────────────────────────${NC}"
+        tail -8 "$SERVER_DIR/tunnel.log" | while IFS= read -r line; do
+            echo "  $line"
+        done
+    fi
     
+    echo -e "\n${CYAN}─────────────────────────────────────${NC}"
     echo -e "\n${YELLOW}Press Enter to continue...${NC}"
     read
 }
 
 # Stop server
 stop_server() {
-    echo -ne "\n${YELLOW}Server name to stop: ${NC}"
+    clear
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     ⏹  Stop Server                    ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
+    
+    # List available servers
+    if [ ! "$(ls -A $SERVERS_DIR 2>/dev/null)" ]; then
+        echo -e "${YELLOW}No servers found${NC}"
+        echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    echo -e "${BLUE}Available servers:${NC}"
+    local count=0
+    for server_dir in "$SERVERS_DIR"/*; do
+        if [ -d "$server_dir" ]; then
+            count=$((count + 1))
+            server_name=$(basename "$server_dir")
+            
+            # Check if running
+            if [ -f "$server_dir/server.pid" ]; then
+                pid=$(cat "$server_dir/server.pid")
+                if ps -p $pid > /dev/null 2>&1; then
+                    echo -e "  ${GREEN}●${NC} $server_name (Running)"
+                else
+                    echo -e "  ${RED}○${NC} $server_name (Stopped)"
+                fi
+            else
+                echo -e "  ${RED}○${NC} $server_name (Stopped)"
+            fi
+        fi
+    done
+    
+    echo ""
+    echo -ne "${YELLOW}Server name to stop (or 'cancel' to go back): ${NC}"
     read server_name
+    
+    if [ "$server_name" = "cancel" ] || [ -z "$server_name" ]; then
+        return
+    fi
     
     SERVER_DIR="$SERVERS_DIR/$server_name"
     
     if [ ! -d "$SERVER_DIR" ]; then
-        echo -e "${RED}Server not found${NC}"
+        echo -e "\n${RED}✗ Server '$server_name' not found${NC}"
+        sleep 2
         return
     fi
     
-    # Stop server
+    echo -e "\n${BLUE}Stopping server '$server_name'...${NC}"
+    
+    local stopped_something=false
+    
+    # Stop server process
     if [ -f "$SERVER_DIR/server.pid" ]; then
         pid=$(cat "$SERVER_DIR/server.pid")
-        kill $pid 2>/dev/null
-        rm "$SERVER_DIR/server.pid"
+        if ps -p $pid > /dev/null 2>&1; then
+            echo -ne "${YELLOW}  Stopping server process (PID: $pid)...${NC} "
+            kill $pid 2>/dev/null
+            sleep 1
+            
+            # Force kill if still running
+            if ps -p $pid > /dev/null 2>&1; then
+                kill -9 $pid 2>/dev/null
+            fi
+            
+            echo -e "${GREEN}✓${NC}"
+            stopped_something=true
+        fi
+        rm -f "$SERVER_DIR/server.pid"
     fi
     
-    # Stop tunnel
+    # Stop tunnel process
     if [ -f "$SERVER_DIR/tunnel.pid" ]; then
         pid=$(cat "$SERVER_DIR/tunnel.pid")
-        kill $pid 2>/dev/null
-        rm "$SERVER_DIR/tunnel.pid"
+        if ps -p $pid > /dev/null 2>&1; then
+            echo -ne "${YELLOW}  Stopping Cloudflare tunnel (PID: $pid)...${NC} "
+            kill $pid 2>/dev/null
+            sleep 1
+            
+            # Force kill if still running
+            if ps -p $pid > /dev/null 2>&1; then
+                kill -9 $pid 2>/dev/null
+            fi
+            
+            echo -e "${GREEN}✓${NC}"
+            stopped_something=true
+        fi
+        rm -f "$SERVER_DIR/tunnel.pid"
     fi
     
-    echo -e "${GREEN}✓ Server stopped${NC}"
-    sleep 2
+    if [ "$stopped_something" = true ]; then
+        echo -e "\n${GREEN}✓ Server '$server_name' stopped successfully${NC}"
+    else
+        echo -e "\n${YELLOW}⚠ Server '$server_name' was not running${NC}"
+    fi
+    
+    echo -e "\n${BLUE}What would you like to do?${NC}"
+    echo "  1. Return to main menu"
+    echo "  2. Exit OpenServers"
+    echo ""
+    echo -ne "${YELLOW}Choice (1-2): ${NC}"
+    read exit_choice
+    
+    if [ "$exit_choice" = "2" ]; then
+        echo -e "\n${GREEN}👋 Thanks for using OpenServers!${NC}\n"
+        exit 0
+    fi
 }
 
 # Delete server
 delete_server() {
-    echo -ne "\n${YELLOW}Server name to delete: ${NC}"
+    clear
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     🗑  Delete Server                  ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
+    
+    # List available servers
+    if [ ! "$(ls -A $SERVERS_DIR 2>/dev/null)" ]; then
+        echo -e "${YELLOW}No servers found${NC}"
+        echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    echo -e "${BLUE}Available servers:${NC}"
+    for server_dir in "$SERVERS_DIR"/*; do
+        if [ -d "$server_dir" ]; then
+            server_name=$(basename "$server_dir")
+            
+            # Check if running
+            if [ -f "$server_dir/server.pid" ]; then
+                pid=$(cat "$server_dir/server.pid")
+                if ps -p $pid > /dev/null 2>&1; then
+                    echo -e "  ${GREEN}●${NC} $server_name (Running)"
+                else
+                    echo -e "  ${RED}○${NC} $server_name (Stopped)"
+                fi
+            else
+                echo -e "  ${RED}○${NC} $server_name (Stopped)"
+            fi
+        fi
+    done
+    
+    echo ""
+    echo -ne "${YELLOW}Server name to delete (or 'cancel' to go back): ${NC}"
     read server_name
+    
+    if [ "$server_name" = "cancel" ] || [ -z "$server_name" ]; then
+        return
+    fi
     
     SERVER_DIR="$SERVERS_DIR/$server_name"
     
     if [ ! -d "$SERVER_DIR" ]; then
-        echo -e "${RED}Server not found${NC}"
+        echo -e "\n${RED}✗ Server '$server_name' not found${NC}"
+        sleep 2
         return
     fi
     
-    echo -ne "${RED}Are you sure? (yes/no): ${NC}"
+    # Show warning
+    echo -e "\n${RED}⚠  WARNING: This will permanently delete the server!${NC}"
+    echo -e "${YELLOW}   Server: $server_name${NC}"
+    echo -e "${YELLOW}   Path:   $SERVER_DIR${NC}"
+    echo ""
+    echo -ne "${RED}Type 'yes' to confirm deletion: ${NC}"
     read confirm
     
     if [ "$confirm" = "yes" ]; then
-        # Stop first
+        echo -e "\n${BLUE}Deleting server '$server_name'...${NC}"
+        
+        # Stop server if running
         if [ -f "$SERVER_DIR/server.pid" ]; then
             pid=$(cat "$SERVER_DIR/server.pid")
-            kill $pid 2>/dev/null
+            if ps -p $pid > /dev/null 2>&1; then
+                echo -ne "${YELLOW}  Stopping server process...${NC} "
+                kill -9 $pid 2>/dev/null
+                echo -e "${GREEN}✓${NC}"
+            fi
         fi
         
+        # Stop tunnel if running
         if [ -f "$SERVER_DIR/tunnel.pid" ]; then
             pid=$(cat "$SERVER_DIR/tunnel.pid")
-            kill $pid 2>/dev/null
+            if ps -p $pid > /dev/null 2>&1; then
+                echo -ne "${YELLOW}  Stopping tunnel...${NC} "
+                kill -9 $pid 2>/dev/null
+                echo -e "${GREEN}✓${NC}"
+            fi
         fi
         
+        # Delete directory
+        echo -ne "${YELLOW}  Removing files...${NC} "
         rm -rf "$SERVER_DIR"
-        echo -e "${GREEN}✓ Server deleted${NC}"
+        echo -e "${GREEN}✓${NC}"
+        
+        echo -e "\n${GREEN}✓ Server '$server_name' deleted successfully${NC}"
     else
-        echo -e "${YELLOW}Cancelled${NC}"
+        echo -e "\n${YELLOW}Deletion cancelled${NC}"
     fi
     
-    sleep 2
+    echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+    read
 }
 
 # Settings
 settings() {
-    clear
-    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     ⚙️  Settings                      ║${NC}"
-    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
-    
-    echo "1. View all server files"
-    echo "2. Export configuration"
-    echo "3. Back"
-    echo ""
-    echo -ne "${YELLOW}Choice: ${NC}"
-    read choice
-    
-    case $choice in
-        1)
-            echo -e "\n${BLUE}Servers directory:${NC} $SERVERS_DIR"
-            ls -la "$SERVERS_DIR"
-            ;;
-        2)
-            tar -czf "$HOME/openservers-backup.tar.gz" "$OPENSERVERS_DIR"
-            echo -e "\n${GREEN}✓ Backup created: ~/openservers-backup.tar.gz${NC}"
-            ;;
-    esac
-    
-    echo -e "\n${YELLOW}Press Enter to continue...${NC}"
-    read
+    while true; do
+        clear
+        echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+        echo -e "${CYAN}║     ⚙️  Settings & Management         ║${NC}"
+        echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
+        
+        echo "  1. 📁 View Server Directory"
+        echo "  2. 💾 Export Backup"
+        echo "  3. 📊 System Information"
+        echo "  4. 🧹 Clean Up Old Logs"
+        echo "  5. ⬅  Back to Main Menu"
+        echo ""
+        echo -ne "${YELLOW}Choice (1-5): ${NC}"
+        read choice
+        
+        case $choice in
+            1)
+                echo -e "\n${CYAN}─────────────────────────────────────${NC}"
+                echo -e "${BLUE}Servers Directory:${NC} $SERVERS_DIR"
+                echo -e "${CYAN}─────────────────────────────────────${NC}\n"
+                
+                if [ "$(ls -A $SERVERS_DIR 2>/dev/null)" ]; then
+                    ls -lh "$SERVERS_DIR" | tail -n +2
+                else
+                    echo -e "${YELLOW}No servers found${NC}"
+                fi
+                
+                echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+                read
+                ;;
+            2)
+                echo -e "\n${BLUE}Creating backup...${NC}"
+                backup_file="$HOME/openservers-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+                
+                if tar -czf "$backup_file" -C "$HOME" ".openservers" 2>/dev/null; then
+                    backup_size=$(du -h "$backup_file" | cut -f1)
+                    echo -e "${GREEN}✓ Backup created successfully!${NC}"
+                    echo -e "\n${BLUE}Location:${NC} $backup_file"
+                    echo -e "${BLUE}Size:${NC}     $backup_size"
+                else
+                    echo -e "${RED}✗ Backup failed${NC}"
+                fi
+                
+                echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+                read
+                ;;
+            3)
+                echo -e "\n${CYAN}─────────────────────────────────────${NC}"
+                echo -e "${YELLOW}System Information${NC}"
+                echo -e "${CYAN}─────────────────────────────────────${NC}"
+                echo -e "${BLUE}Environment:${NC}     $ENV"
+                echo -e "${BLUE}Hostname:${NC}        $(hostname)"
+                echo -e "${BLUE}User:${NC}            $USER"
+                echo -e "${BLUE}Home:${NC}            $HOME"
+                echo -e "${BLUE}Architecture:${NC}    $(uname -m)"
+                echo -e "${BLUE}Python:${NC}          $(python3 --version 2>&1 | cut -d' ' -f2)"
+                
+                if command -v cloudflared &> /dev/null; then
+                    cloudflared_version=$(cloudflared --version 2>&1 | head -1)
+                    echo -e "${BLUE}Cloudflared:${NC}     $cloudflared_version"
+                else
+                    echo -e "${BLUE}Cloudflared:${NC}     Not installed"
+                fi
+                
+                # Count servers
+                server_count=$(find "$SERVERS_DIR" -maxdepth 1 -type d 2>/dev/null | wc -l)
+                server_count=$((server_count - 1))
+                
+                running_count=0
+                if [ -d "$SERVERS_DIR" ]; then
+                    for server_dir in "$SERVERS_DIR"/*; do
+                        if [ -f "$server_dir/server.pid" ]; then
+                            pid=$(cat "$server_dir/server.pid")
+                            if ps -p $pid > /dev/null 2>&1; then
+                                running_count=$((running_count + 1))
+                            fi
+                        fi
+                    done
+                fi
+                
+                echo -e "\n${BLUE}Total Servers:${NC}   $server_count"
+                echo -e "${BLUE}Running:${NC}         $running_count"
+                echo -e "${BLUE}Stopped:${NC}         $((server_count - running_count))"
+                
+                echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+                read
+                ;;
+            4)
+                echo -e "\n${BLUE}Cleaning up old logs...${NC}"
+                
+                cleaned=0
+                for server_dir in "$SERVERS_DIR"/*; do
+                    if [ -d "$server_dir" ]; then
+                        # Truncate large log files
+                        if [ -f "$server_dir/server.log" ]; then
+                            log_size=$(wc -l < "$server_dir/server.log" 2>/dev/null || echo "0")
+                            if [ "$log_size" -gt 1000 ]; then
+                                tail -500 "$server_dir/server.log" > "$server_dir/server.log.tmp"
+                                mv "$server_dir/server.log.tmp" "$server_dir/server.log"
+                                cleaned=$((cleaned + 1))
+                            fi
+                        fi
+                        
+                        if [ -f "$server_dir/tunnel.log" ]; then
+                            log_size=$(wc -l < "$server_dir/tunnel.log" 2>/dev/null || echo "0")
+                            if [ "$log_size" -gt 1000 ]; then
+                                tail -500 "$server_dir/tunnel.log" > "$server_dir/tunnel.log.tmp"
+                                mv "$server_dir/tunnel.log.tmp" "$server_dir/tunnel.log"
+                                cleaned=$((cleaned + 1))
+                            fi
+                        fi
+                    fi
+                done
+                
+                if [ $cleaned -gt 0 ]; then
+                    echo -e "${GREEN}✓ Cleaned $cleaned log file(s)${NC}"
+                else
+                    echo -e "${YELLOW}No log files needed cleaning${NC}"
+                fi
+                
+                echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+                read
+                ;;
+            5)
+                return
+                ;;
+            *)
+                echo -e "${RED}Invalid option${NC}"
+                sleep 1
+                ;;
+        esac
+    done
 }
 
 # Main execution
