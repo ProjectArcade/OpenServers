@@ -174,24 +174,26 @@ main_menu() {
         echo ""
         echo "  1. 🚀 Create New Server"
         echo "  2. 📋 List Running Servers"
-        echo "  3. 🔍 View Server Details"
-        echo "  4. ⏹  Stop Server"
-        echo "  5. 🗑  Delete Server"
-        echo "  6. ⚙️  Settings"
-        echo "  7. 🚪 Exit"
+        echo "  3. ▶️  Start Server"
+        echo "  4. 🔍 View Server Details"
+        echo "  5. ⏹  Stop Server"
+        echo "  6. 🗑  Delete Server"
+        echo "  7. ⚙️  Settings"
+        echo "  8. 🚪 Exit"
         echo ""
-        echo -ne "${YELLOW}Choose option (1-7): ${NC}"
+        echo -ne "${YELLOW}Choose option (1-8): ${NC}"
         
         read choice
         
         case $choice in
             1) create_server ;;
             2) list_servers ;;
-            3) view_server ;;
-            4) stop_server ;;
-            5) delete_server ;;
-            6) settings ;;
-            7) 
+            3) start_server ;;
+            4) view_server ;;
+            5) stop_server ;;
+            6) delete_server ;;
+            7) settings ;;
+            8) 
                 echo -e "\n${GREEN}👋 Thanks for using OpenServers!${NC}\n"
                 exit 0
                 ;;
@@ -967,6 +969,170 @@ list_servers() {
     done
     
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+    read
+}
+
+# Start server
+start_server() {
+    clear
+    echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     ▶️  Start Server                   ║${NC}"
+    echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}\n"
+    
+    # List available servers
+    if [ ! "$(ls -A $SERVERS_DIR 2>/dev/null)" ]; then
+        echo -e "${YELLOW}No servers found${NC}"
+        echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+        read
+        return
+    fi
+    
+    echo -e "${BLUE}Available servers:${NC}"
+    for server_dir in "$SERVERS_DIR"/*; do
+        if [ -d "$server_dir" ]; then
+            server_name=$(basename "$server_dir")
+            
+            # Check if running
+            if [ -f "$server_dir/server.pid" ]; then
+                pid=$(cat "$server_dir/server.pid")
+                if ps -p $pid > /dev/null 2>&1; then
+                    echo -e "  ${GREEN}●${NC} $server_name (Already running)"
+                else
+                    echo -e "  ${RED}○${NC} $server_name (Stopped)"
+                fi
+            else
+                echo -e "  ${RED}○${NC} $server_name (Stopped)"
+            fi
+        fi
+    done
+    
+    echo ""
+    echo -ne "${YELLOW}Server name to start (or 'cancel' to go back): ${NC}"
+    read server_name
+    
+    if [ "$server_name" = "cancel" ] || [ -z "$server_name" ]; then
+        return
+    fi
+    
+    SERVER_DIR="$SERVERS_DIR/$server_name"
+    
+    if [ ! -d "$SERVER_DIR" ]; then
+        echo -e "\n${RED}✗ Server '$server_name' not found${NC}"
+        sleep 2
+        return
+    fi
+    
+    # Check if already running
+    if [ -f "$SERVER_DIR/server.pid" ]; then
+        pid=$(cat "$SERVER_DIR/server.pid")
+        if ps -p $pid > /dev/null 2>&1; then
+            echo -e "\n${YELLOW}⚠ Server '$server_name' is already running (PID: $pid)${NC}"
+            echo -e "\n${YELLOW}Press Enter to continue...${NC}"
+            read
+            return
+        fi
+    fi
+    
+    # Get port and expose settings
+    if [ -f "$SERVER_DIR/config.json" ]; then
+        port=$(grep -oP '"port":\s*\K\d+' "$SERVER_DIR/config.json")
+        exposed=$(grep -oP '"exposed":\s*\K(true|false)' "$SERVER_DIR/config.json")
+    else
+        echo -e "\n${RED}✗ Configuration file not found${NC}"
+        sleep 2
+        return
+    fi
+    
+    echo -e "\n${BLUE}Starting server '$server_name'...${NC}"
+    
+    # Start the actual server
+    cd "$SERVER_DIR"
+    
+    if [ -f "server.py" ]; then
+        echo -ne "${YELLOW}  Starting Python server...${NC} "
+        nohup python3 server.py > "$SERVER_DIR/server.log" 2>&1 &
+        echo $! > "$SERVER_DIR/server.pid"
+        echo -e "${GREEN}✓${NC}"
+    elif [ -f "server.js" ]; then
+        echo -ne "${YELLOW}  Starting Node.js server...${NC} "
+        nohup node server.js > "$SERVER_DIR/server.log" 2>&1 &
+        echo $! > "$SERVER_DIR/server.pid"
+        echo -e "${GREEN}✓${NC}"
+    elif [ -f "start.sh" ]; then
+        echo -ne "${YELLOW}  Starting custom server...${NC} "
+        nohup ./start.sh > "$SERVER_DIR/server.log" 2>&1 &
+        echo $! > "$SERVER_DIR/server.pid"
+        echo -e "${GREEN}✓${NC}"
+    else
+        echo -e "${RED}✗ No server executable found${NC}"
+        echo -e "${YELLOW}  Expected: server.py, server.js, or start.sh${NC}"
+        sleep 2
+        return
+    fi
+    
+    sleep 2
+    
+    # Check if server started successfully
+    if [ -f "$SERVER_DIR/server.pid" ]; then
+        pid=$(cat "$SERVER_DIR/server.pid")
+        if ps -p $pid > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Server started successfully (PID: $pid)${NC}"
+        else
+            echo -e "${RED}✗ Server failed to start${NC}"
+            echo -e "${YELLOW}  Check logs: cat $SERVER_DIR/server.log${NC}"
+            sleep 2
+            return
+        fi
+    fi
+    
+    # Start tunnel if it was exposed
+    if [ "$exposed" = "true" ]; then
+        echo -ne "${YELLOW}  Starting Cloudflare tunnel...${NC} "
+        
+        cloudflared tunnel --url "http://localhost:$port" > "$SERVER_DIR/tunnel.log" 2>&1 &
+        echo $! > "$SERVER_DIR/tunnel.pid"
+        
+        sleep 3
+        echo -e "${GREEN}✓${NC}"
+        
+        # Wait for URL
+        echo -n "  Waiting for tunnel URL"
+        for i in {1..20}; do
+            sleep 1
+            echo -n "."
+            
+            if grep -q "trycloudflare.com" "$SERVER_DIR/tunnel.log" 2>/dev/null; then
+                break
+            fi
+        done
+        echo ""
+        
+        # Extract URL
+        TUNNEL_URL=$(grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$SERVER_DIR/tunnel.log" 2>/dev/null | head -1)
+        
+        if [ -z "$TUNNEL_URL" ]; then
+            TUNNEL_URL=$(grep -oE 'https://[^[:space:]]+trycloudflare\.com' "$SERVER_DIR/tunnel.log" 2>/dev/null | head -1)
+        fi
+        
+        if [ ! -z "$TUNNEL_URL" ]; then
+            echo "$TUNNEL_URL" > "$SERVER_DIR/tunnel.url"
+            echo -e "${GREEN}  ✓ Tunnel URL: $TUNNEL_URL${NC}"
+        else
+            echo -e "${YELLOW}  ⚠ Tunnel started but URL not captured yet${NC}"
+        fi
+    fi
+    
+    # Show access URLs
+    echo -e "\n${CYAN}═══════════════════════════════════════${NC}"
+    echo -e "${GREEN}✓ Server '$server_name' is now running!${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════${NC}"
+    echo -e "\n${YELLOW}Local URL:${NC}  http://localhost:$port"
+    
+    if [ "$exposed" = "true" ] && [ ! -z "$TUNNEL_URL" ]; then
+        echo -e "${YELLOW}Public URL:${NC} ${GREEN}$TUNNEL_URL${NC}"
+    fi
+    
     echo -e "\n${YELLOW}Press Enter to continue...${NC}"
     read
 }
